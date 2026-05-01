@@ -2,6 +2,15 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export async function middleware(req: NextRequest) {
+  // If a Supabase magic-link redirect lands on the root (because the
+  // /auth/callback URL wasn't in the Supabase Redirect URLs allowlist and
+  // Supabase fell back to Site URL), forward the code to the real handler.
+  if (req.nextUrl.pathname === "/" && req.nextUrl.searchParams.has("code")) {
+    const target = new URL("/auth/callback", req.url);
+    target.search = req.nextUrl.search;
+    return NextResponse.redirect(target);
+  }
+
   let response = NextResponse.next({ request: req });
 
   const supabase = createServerClient(
