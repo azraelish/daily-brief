@@ -5,24 +5,43 @@ import type { Asset, AssetPrice, PortfolioView, Transaction, AssetSummary } from
 export async function loadPortfolio(): Promise<PortfolioView> {
   const sb = supabaseServer();
 
-  const [txRes, assetsRes, pricesRes] = await Promise.all([
+  // 30-day cutoff for the sparkline.
+  const cutoff = new Date();
+  cutoff.setUTCDate(cutoff.getUTCDate() - 30);
+  const cutoffISO = cutoff.toISOString().slice(0, 10);
+
+  const [txRes, assetsRes, pricesRes, historyRes] = await Promise.all([
     sb
       .from("transactions")
       .select("id, asset_id, type, quantity, price, fees, occurred_at, notes")
       .order("occurred_at", { ascending: false }),
     sb.from("assets").select("*"),
     sb.from("asset_prices").select("*"),
+    sb
+      .from("asset_price_history")
+      .select("asset_id, date, price")
+      .gte("date", cutoffISO)
+      .order("date", { ascending: true }),
   ]);
 
   if (txRes.error) throw new Error(`transactions: ${txRes.error.message}`);
   if (assetsRes.error) throw new Error(`assets: ${assetsRes.error.message}`);
   if (pricesRes.error) throw new Error(`asset_prices: ${pricesRes.error.message}`);
+  if (historyRes.error) throw new Error(`asset_price_history: ${historyRes.error.message}`);
 
   const transactions = (txRes.data ?? []) as Transaction[];
   const assets = (assetsRes.data ?? []) as Asset[];
   const prices = (pricesRes.data ?? []) as AssetPrice[];
+  const history = (historyRes.data ?? []) as Array<{ asset_id: string; date: string; price: number }>;
 
   const priceByAsset = new Map(prices.map((p) => [p.asset_id, p]));
+  const historyByAsset = new Map<string, Array<{ date: string; price: number }>>();
+  for (const h of history) {
+    const list = historyByAsset.get(h.asset_id);
+    const point = { date: h.date, price: Number(h.price) };
+    if (list) list.push(point);
+    else historyByAsset.set(h.asset_id, [point]);
+  }
   const txByAsset = new Map<string, Transaction[]>();
   for (const tx of transactions) {
     const list = txByAsset.get(tx.asset_id);
@@ -36,7 +55,14 @@ export async function loadPortfolio(): Promise<PortfolioView> {
   for (const asset of assets) {
     const txs = txByAsset.get(asset.id);
     if (!txs || txs.length === 0) continue;
-    summaries.push(summarise(asset, txs, priceByAsset.get(asset.id) ?? null));
+    summaries.push(
+      summarise(
+        asset,
+        txs,
+        priceByAsset.get(asset.id) ?? null,
+        historyByAsset.get(asset.id) ?? [],
+      ),
+    );
   }
 
   summaries.sort((a, b) => b.totalCost - a.totalCost);

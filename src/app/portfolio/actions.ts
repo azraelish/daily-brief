@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { supabaseServer, getOwnerUser } from "@/lib/auth/server";
+import { refreshPortfolioPrices } from "@/lib/portfolio/refresh-prices";
 
 export type ActionResult = { ok: boolean; error?: string };
 
@@ -174,4 +175,69 @@ export async function importTransactions(rows: CsvRow[]): Promise<ActionResult &
 
   revalidatePath("/portfolio");
   return { ok: true, inserted: count ?? validated.length };
+}
+
+export async function setManualPrice(formData: FormData): Promise<ActionResult> {
+  const user = await getOwnerUser();
+  if (!user) return { ok: false, error: "Not authorized" };
+  const asset_id = String(formData.get("asset_id") ?? "").trim();
+  const priceRaw = formData.get("price");
+  const clear = formData.get("clear") === "1";
+  if (!asset_id) return { ok: false, error: "asset_id required" };
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) return { ok: false, error: "Server misconfigured" };
+  const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  if (clear) {
+    // Drop manual flag so the next refresh uses Yahoo / CoinGecko again.
+    const { error } = await admin
+      .from("asset_prices")
+      .update({ manual_override: false })
+      .eq("asset_id", asset_id);
+    if (error) return { ok: false, error: error.message };
+    revalidatePath("/portfolio");
+    return { ok: true };
+  }
+
+  const price = Number(priceRaw);
+  if (!Number.isFinite(price) || price < 0) return { ok: false, error: "Bad price" };
+
+  const { data: asset, error: aErr } = await admin
+    .from("assets")
+    .select("currency")
+    .eq("id", asset_id)
+    .maybeSingle();
+  if (aErr || !asset) return { ok: false, error: aErr?.message ?? "Asset not found" };
+
+  const { error } = await admin.from("asset_prices").upsert(
+    {
+      asset_id,
+      price,
+      currency: asset.currency,
+      source: "manual",
+      manual_override: true,
+      fetched_at: new Date().toISOString(),
+    },
+    { onConflict: "asset_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/portfolio");
+  return { ok: true };
+}
+
+export async function triggerRefreshPrices(): Promise<ActionResult & { fetched?: number }> {
+  const user = await getOwnerUser();
+  if (!user) return { ok: false, error: "Not authorized" };
+  try {
+    const outcomes = await refreshPortfolioPrices();
+    const fetched = outcomes.filter((o) => o.ok && o.price != null).length;
+    revalidatePath("/portfolio");
+    return { ok: true, fetched };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "unknown";
+    return { ok: false, error: msg };
+  }
 }

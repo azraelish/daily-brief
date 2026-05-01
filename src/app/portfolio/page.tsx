@@ -66,7 +66,7 @@ export default async function PortfolioPage() {
 
       {!hasAnyPrice ? (
         <div className="mb-8 rounded-lg border border-amber-900/40 bg-amber-950/20 px-5 py-3 text-xs text-amber-200/80">
-          Live prices arrive in Phase 5. Until then, current value and P/L show <span className="font-mono">—</span>.
+          No live prices yet — click <span className="font-medium">Refresh prices</span> above to fetch them now. Daily auto-refresh runs alongside the morning cron.
         </div>
       ) : null}
 
@@ -110,7 +110,8 @@ export default async function PortfolioPage() {
       ) : null}
 
       <footer className="mt-12 text-xs text-neutral-500">
-        Phase 5 will add: live prices via Yahoo / CoinGecko + per-asset value-over-time chart.
+        Prices · CoinGecko (BTC) and Yahoo Finance (ETFs). Refreshed daily with the
+        morning cron, plus on-demand via the button above.
       </footer>
     </main>
   );

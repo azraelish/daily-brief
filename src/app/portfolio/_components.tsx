@@ -1,6 +1,7 @@
 import { formatMoney, formatPct, formatQty, txPnl } from "@/lib/portfolio/calc";
 import type { Asset, AssetSummary, Transaction } from "@/lib/portfolio/types";
-import { RowActions } from "./_toolbar";
+import { PriceOverrideButton, RowActions } from "./_toolbar";
+import { Sparkline } from "./_sparkline";
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -51,9 +52,20 @@ export function TotalsBar({
 }
 
 export function HoldingHeader({ summary }: { summary: AssetSummary }) {
-  const { asset, price, holdings, totalCost, avgNetCost, currentValue, unrealisedPnl, unrealisedPnlPct } =
+  const { asset, price, history, holdings, totalCost, avgNetCost, currentValue, unrealisedPnl, unrealisedPnlPct } =
     summary;
   const cur = asset.currency;
+  const sparkPositive =
+    history.length >= 2 ? history[history.length - 1].price >= history[0].price : undefined;
+  const fetchedAt = price
+    ? new Date(price.fetched_at).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : null;
   return (
     <div className="mb-4 rounded-lg border border-neutral-800 bg-neutral-900/40 p-5">
       <div className="flex items-baseline justify-between gap-4">
@@ -67,11 +79,22 @@ export function HoldingHeader({ summary }: { summary: AssetSummary }) {
               </span>
             ) : null}
           </div>
-          {price ? (
-            <div className="mt-1 font-mono text-sm text-neutral-400">
-              {formatMoney(Number(price.price), cur)} / unit
-            </div>
-          ) : null}
+          <div className="mt-1 flex items-center gap-2 font-mono text-sm text-neutral-400">
+            {price ? (
+              <>
+                <span>{formatMoney(Number(price.price), cur)} / unit</span>
+                <PriceOverrideButton asset={asset} price={price} />
+                <span className="text-[10px] uppercase tracking-widest text-neutral-600">
+                  {price.manual_override ? "manual" : price.source} · {fetchedAt}
+                </span>
+              </>
+            ) : (
+              <>
+                <span>price not fetched yet</span>
+                <PriceOverrideButton asset={asset} price={null} />
+              </>
+            )}
+          </div>
         </div>
         <div className="text-right">
           <div className="font-mono text-2xl">
@@ -88,6 +111,14 @@ export function HoldingHeader({ summary }: { summary: AssetSummary }) {
           ) : null}
         </div>
       </div>
+      {history.length >= 2 ? (
+        <div className="mt-3 flex items-center justify-between gap-4 border-t border-neutral-800 pt-3">
+          <span className="text-[10px] uppercase tracking-widest text-neutral-500">
+            Last 30 days
+          </span>
+          <Sparkline history={history} positive={sparkPositive} />
+        </div>
+      ) : null}
       <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
         <Stat label="Holdings" value={`${formatQty(holdings, asset.kind)} ${asset.symbol}`} />
         <Stat label="Total cost" value={formatMoney(totalCost, cur)} />

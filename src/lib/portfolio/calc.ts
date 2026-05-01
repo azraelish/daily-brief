@@ -18,6 +18,7 @@ export function summarise(
   asset: Asset,
   transactions: Transaction[],
   price: AssetPrice | null,
+  history: { date: string; price: number }[] = [],
 ): AssetSummary {
   let holdings = 0;
   let totalCost = 0;
@@ -42,6 +43,7 @@ export function summarise(
   return {
     asset,
     price,
+    history,
     transactions,
     holdings,
     totalCost,

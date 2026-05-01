@@ -32,9 +32,12 @@ export type Transaction = {
   notes: string | null;
 };
 
+export type PriceHistoryPoint = { date: string; price: number };
+
 export type AssetSummary = {
   asset: Asset;
   price: AssetPrice | null;
+  history: PriceHistoryPoint[];
   transactions: Transaction[];
   holdings: number;
   totalCost: number;       // Σ(qty*price + fees) for buys, minus proceeds from sells

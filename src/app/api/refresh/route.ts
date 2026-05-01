@@ -3,6 +3,7 @@ import { serviceClient } from "@/lib/supabase";
 import { fetchBitcoin, fetchCryptoHeadlines, fetchHeadlines } from "@/lib/sources";
 import { pickSalads } from "@/lib/salads";
 import { todayUTC, yesterdayUTC } from "@/lib/date";
+import { refreshPortfolioPrices } from "@/lib/portfolio/refresh-prices";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,14 @@ async function doRefresh() {
     .single();
 
   if (error) throw new Error(`upsert: ${error.message}`);
+
+  // Best-effort portfolio price refresh — log failures but don't fail the brief.
+  try {
+    await refreshPortfolioPrices();
+  } catch (err) {
+    console.error("portfolio price refresh failed (non-fatal):", err);
+  }
+
   return data;
 }
 
