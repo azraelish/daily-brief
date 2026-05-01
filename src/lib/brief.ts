@@ -54,6 +54,7 @@ export async function getBriefView(): Promise<BriefView | null> {
     btcPrice: Number(snap.btc_price),
     btcChange24h: Number(snap.btc_change_24h),
     headlines: snap.headlines,
+    cryptoHeadlines: snap.crypto_headlines ?? [],
     salads,
     refreshedAt: snap.created_at,
   };

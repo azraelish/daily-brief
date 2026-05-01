@@ -22,14 +22,19 @@ export default async function Page() {
       ) : brief ? (
         <>
           <BitcoinCard price={brief.btcPrice} change24h={brief.btcChange24h} />
-          <Headlines headlines={brief.headlines} />
+          <Headlines
+            title="Bitcoin news"
+            headlines={brief.cryptoHeadlines}
+            empty="No Bitcoin headlines today."
+          />
+          <Headlines title="World headlines" headlines={brief.headlines} />
           <Salads brief={brief} />
         </>
       ) : (
         <Skeleton />
       )}
       <footer className="mt-14 text-xs text-neutral-500">
-        Refreshed daily at 07:00 UTC. Sources: CoinGecko · GNews / BBC.
+        Refreshed daily at 07:00 UTC. Sources: CoinGecko · BBC · CoinDesk.
       </footer>
     </main>
   );
@@ -79,10 +84,21 @@ function BitcoinCard({ price, change24h }: { price: number; change24h: number })
   );
 }
 
-function Headlines({ headlines }: { headlines: BriefView["headlines"] }) {
+function Headlines({
+  title,
+  headlines,
+  empty,
+}: {
+  title: string;
+  headlines: BriefView["headlines"];
+  empty?: string;
+}) {
   return (
     <section className="mb-10">
-      <SectionTitle>World headlines</SectionTitle>
+      <SectionTitle>{title}</SectionTitle>
+      {headlines.length === 0 && empty ? (
+        <p className="text-sm text-neutral-500">{empty}</p>
+      ) : null}
       <ol className="space-y-3">
         {headlines.map((h, i) => (
           <li key={`${h.url}-${i}`} className="flex gap-3 text-sm">

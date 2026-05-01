@@ -77,3 +77,59 @@ export async function fetchHeadlines(): Promise<Headline[]> {
   }
   return fetchBBCRSS();
 }
+
+async function fetchRSS(url: string, sourceName: string, limit: number): Promise<Headline[]> {
+  const res = await fetch(url, { headers: { "User-Agent": UA }, cache: "no-store" });
+  if (!res.ok) throw new Error(`${sourceName} ${res.status}`);
+  const xml = await res.text();
+  const parser = new XMLParser({ ignoreAttributes: false });
+  const parsed = parser.parse(xml) as {
+    rss?: { channel?: { item?: Array<{ title: string; link: string; pubDate?: string }> } };
+  };
+  const items = parsed.rss?.channel?.item ?? [];
+  return items.slice(0, limit).map((it) => ({
+    title: typeof it.title === "string" ? it.title : String(it.title ?? ""),
+    source: sourceName,
+    url: it.link,
+    publishedAt: it.pubDate ? new Date(it.pubDate).toISOString() : new Date().toISOString(),
+  }));
+}
+
+async function fetchGNewsCrypto(apiKey: string): Promise<Headline[]> {
+  const url = new URL("https://gnews.io/api/v4/search");
+  url.searchParams.set("q", "bitcoin");
+  url.searchParams.set("lang", "en");
+  url.searchParams.set("max", "5");
+  url.searchParams.set("sortby", "publishedAt");
+  url.searchParams.set("apikey", apiKey);
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`GNews crypto ${res.status}`);
+  const json = (await res.json()) as GNewsResponse;
+  const arts = json.articles ?? [];
+  return arts.slice(0, 5).map((a) => ({
+    title: a.title,
+    source: a.source?.name ?? "Unknown",
+    url: a.url,
+    publishedAt: a.publishedAt,
+  }));
+}
+
+export async function fetchCryptoHeadlines(): Promise<Headline[]> {
+  const key = process.env.NEWS_API_KEY;
+  if (key) {
+    try {
+      const out = await fetchGNewsCrypto(key);
+      if (out.length > 0) return out;
+    } catch (err) {
+      console.error("GNews crypto failed, falling back to RSS:", err);
+    }
+  }
+  // CoinDesk first, CoinTelegraph as fallback.
+  try {
+    const out = await fetchRSS("https://www.coindesk.com/arc/outboundfeeds/rss/", "CoinDesk", 5);
+    if (out.length > 0) return out;
+  } catch (err) {
+    console.error("CoinDesk RSS failed:", err);
+  }
+  return fetchRSS("https://cointelegraph.com/rss", "CoinTelegraph", 5);
+}

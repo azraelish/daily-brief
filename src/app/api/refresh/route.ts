@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { serviceClient } from "@/lib/supabase";
-import { fetchBitcoin, fetchHeadlines } from "@/lib/sources";
+import { fetchBitcoin, fetchCryptoHeadlines, fetchHeadlines } from "@/lib/sources";
 import { pickSalads } from "@/lib/salads";
 import { todayUTC, yesterdayUTC } from "@/lib/date";
 
@@ -20,9 +20,10 @@ async function doRefresh() {
   const today = todayUTC();
   const yesterday = yesterdayUTC();
 
-  const [{ price, change24h }, headlines, allSaladsRes, ySnap] = await Promise.all([
+  const [{ price, change24h }, headlines, cryptoHeadlines, allSaladsRes, ySnap] = await Promise.all([
     fetchBitcoin(),
     fetchHeadlines(),
+    fetchCryptoHeadlines(),
     sb.from("salads").select("id"),
     sb.from("brief_snapshots").select("salad_ids").eq("brief_date", yesterday).maybeSingle(),
   ]);
@@ -40,6 +41,7 @@ async function doRefresh() {
         btc_price: price,
         btc_change_24h: change24h,
         headlines,
+        crypto_headlines: cryptoHeadlines,
         salad_ids: saladIds,
       },
       { onConflict: "brief_date" },
