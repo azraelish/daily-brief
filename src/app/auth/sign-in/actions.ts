@@ -42,7 +42,12 @@ export async function sendMagicLink(
 
   if (error) {
     console.error("signInWithOtp failed:", error);
-    return { ok: false, message: "Couldn't send the link. Try again in a moment." };
+    // Phase 1 debugging — surface the actual Supabase error so we can diagnose.
+    const detail = error.message || error.name || "unknown";
+    return {
+      ok: false,
+      message: `Supabase rejected the request: ${detail}. (Status: ${error.status ?? "?"})`,
+    };
   }
   return generic;
 }
