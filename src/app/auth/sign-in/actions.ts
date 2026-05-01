@@ -42,12 +42,15 @@ export async function sendMagicLink(
 
   if (error) {
     console.error("signInWithOtp failed:", error);
-    // Phase 1 debugging — surface the actual Supabase error so we can diagnose.
-    const detail = error.message || error.name || "unknown";
-    return {
-      ok: false,
-      message: `Supabase rejected the request: ${detail}. (Status: ${error.status ?? "?"})`,
-    };
+    // Show the rate-limit message specifically — it's a useful signal for the
+    // owner without leaking which email is allowlisted.
+    if (error.status === 429) {
+      return {
+        ok: false,
+        message: "Email rate limit reached. Try again in about an hour.",
+      };
+    }
+    return { ok: false, message: "Couldn't send the link. Try again in a moment." };
   }
   return generic;
 }
