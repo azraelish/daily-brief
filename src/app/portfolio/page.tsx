@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { getOwnerUser } from "@/lib/auth/server";
+import { getOwnerUser, supabaseServer } from "@/lib/auth/server";
 import { loadPortfolio } from "@/lib/portfolio/queries";
 import {
   EmptySection,
@@ -9,7 +9,8 @@ import {
   TotalsBar,
   TxTable,
 } from "./_components";
-import type { AssetSummary } from "@/lib/portfolio/types";
+import { PortfolioActions } from "./_toolbar";
+import type { Asset, AssetSummary } from "@/lib/portfolio/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -23,9 +24,14 @@ export default async function PortfolioPage() {
   }
 
   let portfolio;
+  let allAssets: Asset[] = [];
   let loadError: string | null = null;
   try {
     portfolio = await loadPortfolio();
+    const sb = supabaseServer();
+    const { data, error } = await sb.from("assets").select("*").order("kind").order("symbol");
+    if (error) throw new Error(error.message);
+    allAssets = (data ?? []) as Asset[];
   } catch (err) {
     loadError = err instanceof Error ? err.message : "unknown error";
   }
@@ -36,19 +42,26 @@ export default async function PortfolioPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-5 py-10 sm:py-14">
-      <header className="mb-8 flex items-baseline justify-between border-b border-neutral-800 pb-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Portfolio</h1>
-          <p className="mt-2 text-sm text-neutral-400">
-            Signed in as <span className="font-mono">{user.email}</span>
-          </p>
+      <header className="mb-6 border-b border-neutral-800 pb-6">
+        <div className="flex items-baseline justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Portfolio</h1>
+            <p className="mt-2 text-sm text-neutral-400">
+              Signed in as <span className="font-mono">{user.email}</span>
+            </p>
+          </div>
+          <a
+            href="/auth/sign-out"
+            className="text-xs uppercase tracking-widest text-neutral-500 hover:text-neutral-200"
+          >
+            Sign out
+          </a>
         </div>
-        <a
-          href="/auth/sign-out"
-          className="text-xs uppercase tracking-widest text-neutral-500 hover:text-neutral-200"
-        >
-          Sign out
-        </a>
+        {allAssets.length > 0 ? (
+          <div className="mt-4">
+            <PortfolioActions assets={allAssets} />
+          </div>
+        ) : null}
       </header>
 
       {!hasAnyPrice ? (
@@ -74,7 +87,7 @@ export default async function PortfolioPage() {
               portfolio.bySection.crypto.map((s: AssetSummary) => (
                 <div key={s.asset.id} className="mb-8">
                   <HoldingHeader summary={s} />
-                  <TxTable summary={s} />
+                  <TxTable summary={s} assets={allAssets} />
                 </div>
               ))
             )}
@@ -88,7 +101,7 @@ export default async function PortfolioPage() {
               portfolio.bySection.etf.map((s: AssetSummary) => (
                 <div key={s.asset.id} className="mb-8">
                   <HoldingHeader summary={s} />
-                  <TxTable summary={s} />
+                  <TxTable summary={s} assets={allAssets} />
                 </div>
               ))
             )}
@@ -97,7 +110,7 @@ export default async function PortfolioPage() {
       ) : null}
 
       <footer className="mt-12 text-xs text-neutral-500">
-        Phase 4 will add: add / edit / delete transactions, CSV import & export, ETF picker.
+        Phase 5 will add: live prices via Yahoo / CoinGecko + per-asset value-over-time chart.
       </footer>
     </main>
   );

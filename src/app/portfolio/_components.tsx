@@ -1,5 +1,6 @@
 import { formatMoney, formatPct, formatQty, txPnl } from "@/lib/portfolio/calc";
-import type { AssetSummary, Transaction } from "@/lib/portfolio/types";
+import type { Asset, AssetSummary, Transaction } from "@/lib/portfolio/types";
+import { RowActions } from "./_toolbar";
 
 export function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -116,7 +117,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function TxTable({ summary }: { summary: AssetSummary }) {
+export function TxTable({ summary, assets }: { summary: AssetSummary; assets: Asset[] }) {
   const { asset, price, transactions } = summary;
   const cur = asset.currency;
   const currentPrice = price ? Number(price.price) : null;
@@ -149,11 +150,19 @@ export function TxTable({ summary }: { summary: AssetSummary }) {
             <th className="px-3 py-2 text-right font-medium">Fees</th>
             <th className="px-3 py-2 text-right font-medium">Cost</th>
             <th className="px-3 py-2 text-right font-medium">P/L</th>
+            <th className="px-3 py-2 text-right font-medium" aria-label="Actions"></th>
           </tr>
         </thead>
         <tbody>
           {transactions.map((tx) => (
-            <TxRow key={tx.id} tx={tx} currentPrice={currentPrice} cur={cur} kind={asset.kind} />
+            <TxRow
+              key={tx.id}
+              tx={tx}
+              currentPrice={currentPrice}
+              cur={cur}
+              kind={asset.kind}
+              assets={assets}
+            />
           ))}
         </tbody>
       </table>
@@ -167,11 +176,13 @@ function TxRow({
   currentPrice,
   cur,
   kind,
+  assets,
 }: {
   tx: Transaction;
   currentPrice: number | null;
   cur: string;
   kind: "crypto" | "etf";
+  assets: Asset[];
 }) {
   const pnl = txPnl(tx, currentPrice);
   const cost = Number(tx.quantity) * Number(tx.price) + Number(tx.fees);
@@ -209,6 +220,9 @@ function TxRow({
         className={`px-3 py-2 text-right font-mono ${pnl == null ? "text-neutral-500" : pnl >= 0 ? "text-emerald-400" : "text-rose-400"}`}
       >
         {pnl == null ? "—" : `${pnl >= 0 ? "+" : "-"}${formatMoney(Math.abs(pnl), cur)}`}
+      </td>
+      <td className="px-3 py-2 text-right">
+        <RowActions tx={tx} assets={assets} />
       </td>
     </tr>
   );
