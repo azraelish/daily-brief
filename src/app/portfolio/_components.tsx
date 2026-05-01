@@ -120,9 +120,26 @@ export function TxTable({ summary }: { summary: AssetSummary }) {
   const { asset, price, transactions } = summary;
   const cur = asset.currency;
   const currentPrice = price ? Number(price.price) : null;
+  const count = transactions.length;
   return (
-    <div className="overflow-x-auto rounded-lg border border-neutral-800">
-      <table className="min-w-full text-sm">
+    <details className="group rounded-lg border border-neutral-800 bg-neutral-900/20">
+      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm text-neutral-300 hover:bg-neutral-900/40">
+        <span className="flex items-center gap-2">
+          <span className="text-neutral-500 transition-transform group-open:rotate-90">▸</span>
+          <span>
+            <span className="font-medium">Transactions</span>{" "}
+            <span className="text-neutral-500">({count})</span>
+          </span>
+        </span>
+        <span className="text-xs uppercase tracking-widest text-neutral-500 group-open:hidden">
+          Show
+        </span>
+        <span className="hidden text-xs uppercase tracking-widest text-neutral-500 group-open:inline">
+          Hide
+        </span>
+      </summary>
+      <div className="overflow-x-auto border-t border-neutral-800">
+        <table className="min-w-full text-sm">
         <thead className="bg-neutral-900/60 text-xs uppercase tracking-widest text-neutral-500">
           <tr>
             <th className="px-3 py-2 text-left font-medium">Type</th>
@@ -140,7 +157,8 @@ export function TxTable({ summary }: { summary: AssetSummary }) {
           ))}
         </tbody>
       </table>
-    </div>
+      </div>
+    </details>
   );
 }
 
