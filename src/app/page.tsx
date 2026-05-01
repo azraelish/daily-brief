@@ -34,7 +34,7 @@ export default async function Page() {
         <Skeleton />
       )}
       <footer className="mt-14 text-xs text-neutral-500">
-        Refreshed daily at 07:00 UTC. Sources: CoinGecko · BBC · CoinDesk.
+        Refreshed daily. Sources: CoinGecko · BBC · CoinDesk.
       </footer>
     </main>
   );
